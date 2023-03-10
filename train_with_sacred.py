@@ -41,7 +41,7 @@ from utils import (mat2xyzrpy, merge_inputs, overlay_imgs, quat2mat,
                    tvector2mat)
 
 torch.backends.cudnn.enabled = True
-torch.backends.cudnn.benchmark = False
+torch.backends.cudnn.benchmark = False #False
 
 ex = Experiment("LCCNet")
 ex.captured_out_filter = apply_backspaces_and_linefeeds
@@ -50,22 +50,23 @@ ex.captured_out_filter = apply_backspaces_and_linefeeds
 # noinspection PyUnusedLocal
 @ex.config
 def config():
+
     checkpoints = './checkpoints/'
     dataset = 'kitti/odom' # 'kitti/raw'
-    data_folder = '/data/kitti_odometry/dataset'
+    data_folder = './data/kitti_odometry/dataset'
     use_reflectance = False
     val_sequence = 0
-    epochs = 120
+    epochs = 50 #120
     BASE_LEARNING_RATE = 3e-4  # 1e-4
     loss = 'combined'
-    max_t = 1.5 # 1.5, 1.0,  0.5,  0.2,  0.1
-    max_r = 20 # 20.0, 10.0, 5.0,  2.0,  1.0
-    batch_size = 240  # 120
-    num_worker = 16
+    max_t = 0.1 # 1.5, 1.0,  0.5,  0.2,  0.1
+    max_r = 1.0 # 20.0, 10.0, 5.0,  2.0,  1.0
+    batch_size = 120  # 120 240
+    num_worker = 0 #16
     network = 'Res_f1'
     optimizer = 'adam'
     resume = True
-    weights = 'checkpoints/kitti/odom/val_seq_00/models/checkpoint_r20.00_t1.50_e43_0.196.tar'
+    weights = None   #'checkpoints/kitti/odom/val_seq_00/models/checkpoint_r20.00_t1.50_e97_0.216.tar'
     rescale_rot = 1.0
     rescale_transl = 2.0
     precision = "O0"
@@ -78,10 +79,11 @@ def config():
     starting_epoch = -1
     max_points = 100000
 
-# device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-# os.environ['CUDA_VISIBLE_DEVICES'] = '4,5,6,7'
 
-
+# device = 'cpu'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+# torch.cuda.set_device(0)
 EPOCH = 1
 def _init_fn(worker_id, seed):
     seed = seed + worker_id + EPOCH*100
@@ -299,8 +301,11 @@ def main(_config, _run, seed):
         # model.load_state_dict(new_state_dict)
 
     # model = model.to(device)
-    model = nn.DataParallel(model)
-    model = model.cuda()
+    # if torch.cuda.device_count()>1:
+    #     model = nn.DataParallel(model, device_ids = [0, 1])
+    # model = nn.DataParallel(model)
+    model.cuda()
+    # model = model.cuda()
 
     INFO('Number of model parameters: {}'.format(sum([p.data.nelement() for p in model.parameters()])))
 
@@ -346,7 +351,7 @@ def main(_config, _run, seed):
                                     math.exp((1 - epoch) * 4e-2)
         else:
             #scheduler.step(epoch%100)
-            _run.log_scalar("LR", scheduler.get_lr()[0])
+            _run.log_scalar("LR", scheduler.get_last_lr()[0])
 
 
         ## Training ##
@@ -668,8 +673,8 @@ def main(_config, _run, seed):
             torch.save({
                 'config': _config,
                 'epoch': epoch,
-                # 'state_dict': model.state_dict(), # single gpu
-                'state_dict': model.module.state_dict(), # multi gpu
+                'state_dict': model.state_dict(), # single gpu
+                # 'state_dict': model.module.state_dict(), # multi gpu
                 'optimizer': optimizer.state_dict(),
                 'train_loss': total_train_loss / len(dataset_train),
                 'val_loss': total_val_loss / len(dataset_val),

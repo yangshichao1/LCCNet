@@ -3,3 +3,9 @@ checkpoints/
 **build/
 **/pretrained/
 *.so
+/pretrained
+/data
+/.idea
+/log
+*.gv
+*.gv.pdf

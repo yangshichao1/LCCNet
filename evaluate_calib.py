@@ -58,13 +58,13 @@ plt_size = 10.5
 ex = Experiment("LCCNet-evaluate-iterative")
 ex.captured_out_filter = apply_backspaces_and_linefeeds
 
-os.environ['CUDA_VISIBLE_DEVICES'] = '1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
 
 # noinspection PyUnusedLocal
 @ex.config
 def config():
     dataset = 'kitti/odom'
-    data_folder = '/data/kitti_odometry/dataset'
+    data_folder = './data/kitti_odometry/dataset'
     test_sequence = 0
     use_prev_output = False
     max_t = 1.5
@@ -85,7 +85,7 @@ def config():
     max_depth = 80.
     iterative_method = 'multi_range' # ['multi_range', 'single_range', 'single']
     output = '../output'
-    save_image = False
+    save_image = True
     outlier_filter = True
     outlier_filter_th = 10
     out_fig_lg = 'EN' # [EN, CN]
@@ -210,7 +210,8 @@ def main(_config, seed):
         checkpoint = torch.load(weights[i], map_location='cpu')
         saved_state_dict = checkpoint['state_dict']
         model.load_state_dict(saved_state_dict)
-        model = model.to(device)
+        # model = model.to(device)
+        model.cuda()
         model.eval()
         models.append(model)
 
@@ -392,7 +393,7 @@ def main(_config, seed):
             out0 = overlay_imgs(rgb_input[0], lidar_input)
             out0 = out0[:376, :1241, :]
             cv2.imwrite(os.path.join(input_path, sample['rgb_name'][0]), out0[:, :, [2, 1, 0]]*255)
-            out1 = overlay_imgs(rgb_input[0], lidar_gt[0].unsqueeze(0))
+            out1 = overlay_imgs(rgb_input[0], lidar_gt[0].unsqueeze(0))  #增加一个维度
             out1 = out1[:376, :1241, :]
             cv2.imwrite(os.path.join(gt_path, sample['rgb_name'][0]), out1[:, :, [2, 1, 0]]*255)
 
@@ -518,6 +519,7 @@ def main(_config, seed):
                                str(errors_t2[iteration + 1][-1][0].item()), str(errors_t2[iteration + 1][-1][1].item()),
                                str(errors_t2[iteration + 1][-1][2].item()), str(errors_rpy[iteration + 1][-1][0].item()),
                                str(errors_rpy[iteration + 1][-1][1].item()), str(errors_rpy[iteration + 1][-1][2].item())]
+                torch.cuda.empty_cache()
 
         # run_time = time.time() - t1
         total_time += run_time

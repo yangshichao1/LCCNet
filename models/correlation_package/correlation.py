@@ -53,7 +53,7 @@ class Correlation(Module):
 
     def forward(self, input1, input2):
 
-        input1 = input1.contiguous()
+        input1 = input1.contiguous() #将内存变连续
         input2 = input2.contiguous()
 
         result = CorrelationFunction.apply(input1, input2, self.pad_size, self.kernel_size, self.max_displacement,self.stride1, self.stride2, self.corr_multiply)
